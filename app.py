@@ -8,9 +8,6 @@ import json
 
 app = Flask(__name__)
 
-
-os.environ['OPENAI_API_KEY'] = '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'
-
 QA_PROMPT_TMPL = (
     "We have provided context information below. \n"
     "---------------------\n"
