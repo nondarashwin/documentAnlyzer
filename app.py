@@ -6,6 +6,8 @@ import atexit
 from flask import Flask, request
 import json
 import mimetypes
+import pytesseract
+from PIL import Image
 
 app = Flask(__name__)
 
@@ -22,13 +24,32 @@ ARTIFACTS_DIR="./artifacts"
 
 def create_vector_index(dir_name):
     indexname = dir_name + "/index_file"
+    document_exist=False
+    documents=list()
     print("Parsing document")
-    documents = SimpleDirectoryReader(dir_name, recursive=True).load_data()
-    llm_predictor = LLMPredictor(llm=OpenAI(temperature=0, model_name="text-davinci-003", max_tokens=1024))
+    print(dir_name)
+    #documents = SimpleDirectoryReader(dir_name, recursive=True).load_data()
+    #llm_predictor = LLMPredictor(llm=OpenAI(temperature=0, model_name="text-davinci-003", max_tokens=1024))
+    if "docs" in os.listdir(dir_name):
+        document_exist=True
+        documents = SimpleDirectoryReader(dir_name+"/docs/").load_data()
+        print(documents)
+        print(len(documents))
+    if "images" in os.listdir(dir_name):
+        document_exist=True
+        documents=documents+ocr_with_chatgpt(dir_name+"/images/")
+        print(len(documents))
     print("Creating an index")
     index = GPTSimpleVectorIndex.from_documents(documents)
     print("Persisting index")
     index.save_to_disk(indexname)
+def ocr_with_chatgpt(dirName):
+    images=os.listdir(dirName)
+    documents=list()
+    for image in images:
+        output=pytesseract.image_to_string(Image.open(dirName+image))
+        documents.append(Document(output))
+    return documents
 
 def run_query(question, dir_name):
     index_file = dir_name + "/index_file"
