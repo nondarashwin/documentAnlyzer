@@ -5,6 +5,7 @@ from langchain import OpenAI
 import atexit
 from flask import Flask, request
 import json
+import mimetypes
 
 app = Flask(__name__)
 
@@ -22,7 +23,7 @@ ARTIFACTS_DIR="./artifacts"
 def create_vector_index(dir_name):
     indexname = dir_name + "/index_file"
     print("Parsing document")
-    documents = SimpleDirectoryReader(dir_name).load_data()
+    documents = SimpleDirectoryReader(dir_name, recursive=True).load_data()
     llm_predictor = LLMPredictor(llm=OpenAI(temperature=0, model_name="text-davinci-003", max_tokens=1024))
     print("Creating an index")
     index = GPTSimpleVectorIndex.from_documents(documents)
@@ -42,19 +43,27 @@ def cleanup_artifacts():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     session_id = request.headers.get('sessionid')
-    dir_name = ARTIFACTS_DIR + "/" + session_id
-    print("Creating directory " + dir_name)
+    base_dir_name = ARTIFACTS_DIR + "/" + session_id
+    print("Creating directory " + base_dir_name)
     try:
-        os.mkdir(dir_name)
+        os.mkdir(base_dir_name)
+        os.mkdir(base_dir_name + "/images")
+        os.mkdir(base_dir_name + "/docs")
     except FileExistsError:
         print("directory exists for session " + session_id)
 
     for uploaded_file, file_content in request.files.items(True):
-        file_name = dir_name + "/" + uploaded_file
+        if file_content.content_type.startswith("image"):
+            dir_name = base_dir_name + "/images"
+        else:
+            dir_name = base_dir_name + "/docs"
+
+        file_name = dir_name + "/" + uploaded_file + mimetypes.guess_extension(file_content.content_type)
+        file_content.content_type
         print("saving uploaded doc to " + file_name)
         file_content.save(file_name)
 
-    create_vector_index(dir_name)
+    create_vector_index(base_dir_name)
     return {
         "success": True
     }
