@@ -44,7 +44,6 @@ def cleanup_artifacts():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    file = request.files['fileName']
     session_id = request.headers.get('sessionid')
     dir_name = ARTIFACTS_DIR + "/" + session_id
     print("Creating directory " + dir_name)
@@ -53,9 +52,10 @@ def upload_file():
     except FileExistsError:
         print("directory exists for session " + session_id)
 
-    file_name = dir_name + "/" + file.filename
-    print("saving uploaded doc to " + file_name)
-    file.save(file_name)
+    for uploaded_file, file_content in request.files.items(True):
+        file_name = dir_name + "/" + uploaded_file
+        print("saving uploaded doc to " + file_name)
+        file_content.save(file_name)
 
     create_vector_index(dir_name)
     return {
